@@ -34,19 +34,24 @@
       register: cp_node_token
       changed_when: false
 
-    - name: Kubeconfig letöltése a lokális (Acer) gépre
-      ansible.builtin.fetch:
+    - name: Kubeconfig másolása ideiglenes helyre
+      ansible.builtin.copy:
         src: /etc/rancher/k3s/k3s.yaml
-        dest: ~/.kube/config-k3sautopilot
-        flat: yes
+        dest: /tmp/k3s.yaml
+        remote_src: yes
+        mode: '0644'
 
-    - name: Kubeconfig IP cím javítása a letöltött fájlban
-      delegate_to: localhost
-      become: false
+    - name: Kubeconfig IP cím javítása a szerveren
       ansible.builtin.replace:
-        path: ~/.kube/config-k3sautopilot
+        path: /tmp/k3s.yaml
         regexp: '127\.0\.0\.1'
         replace: "{{ ansible_host }}"
+
+    - name: Kubeconfig letöltése a lokális (Acer) gépre
+      ansible.builtin.fetch:
+        src: /tmp/k3s.yaml
+        dest: ~/.kube/config-k3sautopilot
+        flat: yes
 
 - name: 3. K3s Worker Node-ok (On-Demand) előkészítése és telepítése
   hosts: workers
