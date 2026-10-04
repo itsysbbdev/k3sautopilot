@@ -1,12 +1,33 @@
 all:
+  vars:
+    ansible_user: bbadmin
+    ansible_become: true
+    ansible_become_method: sudo
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  
+  hosts:
+    t320s:
+      ansible_host: 10.8.8.11
+    asuspc:
+      ansible_host: 10.8.8.88
+    dell-o7010:
+      ansible_host: 10.8.8.89
+    hp840g6:
+      ansible_host: 10.8.8.91
+
   children:
-    k3s_master:
-      hosts:
-        node-10-8-8-10:
-          ansible_host: 10.8.8.10
-          ansible_user: root
-    k3s_worker:
-      hosts:
-        node-10-8-8-11:
-          ansible_host: 10.8.8.11
-          ansible_user: root
+    k3s_cluster:
+      children:
+        cp:
+          hosts:
+            t320s:
+        workers:
+          hosts:
+            asuspc:
+            dell-o7010:
+            hp840g6:
+        longhorn:
+          hosts:
+            asuspc:
+            dell-o7010:
+            hp840g6:

@@ -2,14 +2,12 @@
 
 Zero-to-hero automatizált K3s bare-metal cluster telepítés.
 
-## Architektúra: Hybrid AI/IaC
-Hagyományos, merev IaC helyett ezt a modellt alkalmazzuk a maximális hordozhatóság (homelab, publikus demók) érdekében:
-1. **Felderítés**: Dinamikus felderítő szkript lekérdezi a bare-metal gépek fizikai paramétereit (IP, lsblk, hálózati interfészek).
-2. **AI Híd**: Az AI Orchestrator (Acer Swift 3) a felderített JSON kimenetből dinamikusan legenerálja az Ansible `inventory` és `host_vars` fájlokat.
-3. **Végrehajtás**: Determinisztikus, idempotens Ansible playbookok elvégzik az OS szintű hardeninget és a K3s telepítését a HP 840 G6 node-on.
+## Architektúra: On-Demand Lab Environment
+A rendszer optimalizálása (ADR-002) alapján a K3s klaszter osztott szerepkörökkel épül fel:
+1. **Control Plane (24/7):** A `10.8.8.11` hoston fut natívan (no-agent módban), garantálva a Rancher és az API folyamatos elérését.
+2. **Workers & Longhorn (On-Demand):** A dedikált vasak (`10.8.8.88`, `.89`, `.91`) kizárólag a labor üzemideje alatt aktívak, csökkentve az energiafogyasztást.
 
 ## Projekt Struktúra
 * `docs/adr/`: Architektúra döntések (Architecture Decision Records)
 * `docs/c4/`: Structurizr C4 modellek (Documentation-as-Code)
-* `scripts/`: Hardver felderítő és JSON generáló szkriptek
-* `ansible/`: Ansible playbookok, dinamikus inventory és szerepkörök
+* `ansible/`: Ansible playbookok, dinamikus inventory és szerepkörök (CP vs Worker)
