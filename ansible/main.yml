@@ -1,7 +1,75 @@
 ---
-- name: Prepare and Deploy Bare-Metal K3s Cluster
-  hosts: all
+- name: 1. Alapcsomagok ellenőrzése minden K3s csomóponton
+  hosts: k3s_cluster
   become: true
-  roles:
-    - role: os-hardening
-    - role: k3s-bootstrap
+  tasks:
+    - name: Szükséges alapcsomagok (curl) telepítése
+      ansible.builtin.apt:
+        name: curl
+        state: present
+        update_cache: yes
+
+- name: 2. K3s Control Plane (24/7) telepítése
+  hosts: cp
+  become: true
+  tasks:
+    - name: K3s Server telepítése (Agent nélkül)
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | sh -s - server \
+          --disable-agent \
+          --tls-san {{ ansible_host }} \
+          --node-ip {{ ansible_host }} \
+          --bind-address {{ ansible_host }}
+      args:
+        creates: /etc/rancher/k3s/k3s.yaml
+
+    - name: Várakozás a K3s API szerver indulására
+      ansible.builtin.wait_for:
+        port: 6443
+        delay: 5
+        timeout: 120
+
+    - name: Node token kinyerése a csatlakozáshoz
+      ansible.builtin.command: cat /var/lib/rancher/k3s/server/node-token
+      register: cp_node_token
+      changed_when: false
+
+    - name: Kubeconfig letöltése a lokális (Acer) gépre
+      ansible.builtin.fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: ~/.kube/config-k3sautopilot
+        flat: yes
+
+    - name: Kubeconfig IP cím javítása a letöltött fájlban
+      delegate_to: localhost
+      become: false
+      ansible.builtin.replace:
+        path: ~/.kube/config-k3sautopilot
+        regexp: '127\.0\.0\.1'
+        replace: "{{ ansible_host }}"
+
+- name: 3. K3s Worker Node-ok (On-Demand) előkészítése és telepítése
+  hosts: workers
+  become: true
+  tasks:
+    - name: Longhorn előfeltételek (open-iscsi, nfs-common) telepítése
+      ansible.builtin.apt:
+        name:
+          - open-iscsi
+          - nfs-common
+        state: present
+
+    - name: iscsid szolgáltatás engedélyezése és indítása
+      ansible.builtin.service:
+        name: iscsid
+        state: started
+        enabled: yes
+
+    - name: K3s Agent (Worker) telepítése és csatlakoztatása
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | K3S_URL=https://{{ hostvars[groups['cp'][0]]['ansible_host'] }}:6443 \
+        K3S_TOKEN={{ hostvars[groups['cp'][0]]['cp_node_token']['stdout'] }} \
+        sh -s - agent \
+        --node-ip {{ ansible_host }}
+      args:
+        creates: /etc/systemd/system/k3s-agent.service
