@@ -1,0 +1,44 @@
+---
+- name: Check if K3s is already installed
+  stat:
+    path: /usr/local/bin/k3s
+  register: k3s_installed
+
+- name: Download K3s install script
+  get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-install.sh
+    mode: '0755'
+  when: not k3s_installed.stat.exists
+
+- name: Bootstrap FIRST master node
+  command: >-
+    /tmp/k3s-install.sh
+  environment:
+    INSTALL_K3S_EXEC: "server --cluster-init --flannel-iface={{ primary_nic }}"
+  when: 
+    - not k3s_installed.stat.exists
+    - inventory_hostname == groups['k3s_master'][0]
+
+- name: Fetch K3s node token from the first master
+  slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: node_token_raw
+  delegate_to: "{{ groups['k3s_master'][0] }}"
+  run_once: true
+
+- name: Set node token fact
+  set_fact:
+    k3s_token: "{{ node_token_raw['content'] | b64decode | trim }}"
+  run_once: true
+
+- name: Join K3s worker nodes
+  command: >-
+    /tmp/k3s-install.sh
+  environment:
+    K3S_URL: "https://{{ hostvars[groups['k3s_master'][0]]['ansible_host'] }}:6443"
+    K3S_TOKEN: "{{ k3s_token }}"
+    INSTALL_K3S_EXEC: "agent --flannel-iface={{ primary_nic }}"
+  when: 
+    - not k3s_installed.stat.exists
+    - "'k3s_worker' in group_names"

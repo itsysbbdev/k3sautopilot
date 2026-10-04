@@ -1,0 +1,3 @@
+---
+primary_nic: enp3s0
+storage_disk: /dev/sda

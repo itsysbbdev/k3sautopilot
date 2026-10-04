@@ -1,0 +1,12 @@
+all:
+  children:
+    k3s_master:
+      hosts:
+        node-10-8-8-10:
+          ansible_host: 10.8.8.10
+          ansible_user: root
+    k3s_worker:
+      hosts:
+        node-10-8-8-11:
+          ansible_host: 10.8.8.11
+          ansible_user: root

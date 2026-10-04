@@ -1,0 +1,3 @@
+---
+primary_nic: eno1
+storage_disk: /dev/nvme0n1
