@@ -3,10 +3,10 @@ echo "=== K3s & Longhorn Teljes Körű Javítás ==="
 
 echo "--- 1. Control Plane (t320s) K3s Server Kényszerített Újraindítása ---"
 ssh bbadmin@10.8.8.11 "curl -sfL https://get.k3s.io | sh -s - server \
-    --disable-agent \
     --tls-san 10.8.8.11 \
     --node-ip 10.8.8.11 \
-    --bind-address 10.8.8.11"
+    --bind-address 10.8.8.11 \
+    --node-taint node-role.kubernetes.io/control-plane:NoSchedule"
 echo "[OK] t320s Control Plane service telepítve/frissítve."
 
 NODES=("10.8.8.88" "10.8.8.89" "10.8.8.91")
